@@ -10,7 +10,11 @@ print(G.shape)
 
 u = box.get_u()
 box.dynamics(s, u, box.cp_list)
-dt = 0.1
-box.linearized_dynamics(s,u,dt,box.cp_list)
+dfds, dfdu = box.dynamics_jacobians(s,u,box.cp_list)
 
+dt = 0.1
+
+s_ref = np.zeros((box.m,1))
+u_ref = np.zeros((box.n,1))
+box.linearized_dynamics(s_ref, u_ref, dt, dfds, dfdu)
 

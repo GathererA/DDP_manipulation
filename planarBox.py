@@ -32,11 +32,14 @@ class PlanarBox():
                       [0, 0, 0, 0, 1, 0],
                      ]) 
 
+    self.m = 6 # State dimension
+    self.n = self.fnum * 2 # Control dimension
+
   """
   Get state variables
   """
   def get_s(self):
-    s = SX.sym("s",6,1) # 6x1 state vector
+    s = SX.sym("s",self.m,1) # 6x1 state vector
     return s
   
   """
@@ -56,7 +59,7 @@ class PlanarBox():
   Get control variables
   """
   def get_u(self):
-    u = SX.sym("u",self.fnum*2,1) # 6x1 state vector
+    u = SX.sym("u",self.n,1) # 6x1 state vector
     return u
 
   """
@@ -180,14 +183,22 @@ class PlanarBox():
     return ds
 
   """
-  Linearize object dynamics around a reference trajectory
   Use Casadi autodiff to compute jacobians of state dynamics w.r.t. s and u
   Returns
   dfds: Jacobian w.r.t. state
   dfdu: Jacobian w.r.t control input
   """
-  def dynamics_jacobians(self,s,u,dt,cp_list):
+  def dynamics_jacobians(self,s,u,cp_list):
     f = self.dynamics(s,u,cp_list)
-    dfds = jacobian(f, s)
-    dfdu = jacobian(f, u)
+    dfds = Function("dfds", [s,u], [jacobian(f, s)])
+    dfdu = Function("dfdu", [s,u], [jacobian(f, u)])
+    return dfds, dfdu
+
+  """
+  Linearize object dynamics around a reference trajectory
+  """
+  def linearized_dynamics(self, s_ref, u_ref, dt, dfds, dfdu):
+    A = np.eye(self.m) + dt * dfds(s_ref,u_ref)
+    B = dt * dfdu(s_ref,u_ref)
+    return A, B
 
