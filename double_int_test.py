@@ -4,9 +4,14 @@ from iLQR import iLQR
 from animateSystem import AnimateSystem
 import matplotlib.pyplot as plt
 
-print("Define planar box object and contact points")
+print("Run iLQR on box with params:")
+width = 0.2
+height = 0.3
+mass = 0.1
 cp_params = [-1, -0.7, 1, 0.7]
-box = PlanarBox(cp_params)
+box = PlanarBox(width, height, mass, cp_params)
+print("Width: {}, Height: {}, Mass: {}".format(width, height, mass))
+print("Contact point frames w.r.t. object frame: {}".format(box.cp_list)) 
 
 # TODO: Add gravity force. For now, we have 0 external forces
 
@@ -23,24 +28,33 @@ dt = 0.01
 
 controller = iLQR(Q, R, Qf, start_state, goal_state, num_steps, dt, box)
 
-print("\nRun iLQR")
+print("\nRunning iLQR...\n")
 s_bar, u_bar, l_arr, L_arr = controller.run_iLQR()
 
 ######################## Simulate system ##############################
+print("Simulating box with params:")
+width = 0.2
+height = 0.3
+mass = 1
+cp_params = [-1, -0.7, 1, 0.7]
+sim_box = PlanarBox(width, height, mass, cp_params)
+print("Width: {}, Height: {}, Mass: {}".format(width, height, mass))
+print("Contact point frames w.r.t. object frame: {}".format(sim_box.cp_list)) 
+
 ep_length = 1000
 # Change the process noise variance here. 0 for no noise.
 noise_variance = 0
 #noise_variance = 0.001
 
 # Arrays to hold state and control
-s = np.zeros((box.m, ep_length + 1))
+s = np.zeros((sim_box.m, ep_length + 1))
 s[:, 0] = start_state[:, 0]
-u = np.zeros((box.n, ep_length))
+u = np.zeros((sim_box.n, ep_length))
 
 for t in range(ep_length):
   u[:,t] = u_bar[:,t] + l_arr[:,t] + L_arr[:,:,t] @ (s[:,t] - s_bar[:,t])
-  w = noise_variance * np.random.rand(box.m)
-  s[:,t+1] = np.squeeze(s[:,t] + dt * box.dyn_fun(s[:,t], u[:,t])) + w
+  w = noise_variance * np.random.rand(sim_box.m)
+  s[:,t+1] = np.squeeze(s[:,t] + dt * sim_box.dyn_fun(s[:,t], u[:,t])) + w
 
 ####################### Visualize trajectory ##########################
 # State
@@ -63,7 +77,7 @@ plt.legend()
 plt.title("Control input")
 plt.xlabel("Time")
 
-animator = AnimateSystem(box, range(ep_length+1), s)
+animator = AnimateSystem(sim_box, range(ep_length+1), s)
 animator.play(False, "animation.mp4")
 animator.draw_box(goal_state, "r")
 plt.show()

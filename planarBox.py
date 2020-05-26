@@ -8,12 +8,12 @@ start_state: [x0, y0, theta0, dx0, dy0, dtheta0]
 goal_state: 
 """
 class PlanarBox():
-  def __init__(self, cp_params):
+  def __init__(self, width, height, mass, cp_params):
 
     # Define box parameters
-    self.width = 0.2
-    self.height = 0.3
-    self.mass = 0.1
+    self.width = width
+    self.height = height
+    self.mass = mass
     self.M_obj = self.get_M_obj() # Mass matrix of box
 
     # Define contact points on box
@@ -22,7 +22,6 @@ class PlanarBox():
     self.cp_params = cp_params
     self.p = 100
     self.cp_list = self.set_cps(self.cp_params)
-    print("Contact point frames w.r.t. object frame: {}".format(self.cp_list))
     
     # Matrix that determines which force components are transmitted through contact points
     self.H = np.array([
