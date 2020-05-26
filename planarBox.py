@@ -10,6 +10,8 @@ goal_state:
 class PlanarBox():
   def __init__(self, width, height, mass, cp_params):
 
+    self.gravity = -10
+
     # Define box parameters
     self.width = width
     self.height = height
@@ -175,7 +177,8 @@ class PlanarBox():
 
     # Compute ddx, ddy, and ddtheta
     G = self.get_G(s, cp_list)
-    dd = inv(self.M_obj) @ (G @ u)
+    g_app = self.get_g_app()
+    dd = inv(self.M_obj) @ (g_app + G @ u)
 
     ds_list.append(dx)
     ds_list.append(dy)
@@ -188,6 +191,13 @@ class PlanarBox():
 
     dyn_fun = Function("dyn", [s,u], [ds])
     return ds, dyn_fun
+
+  """
+  Return force of gravity on object
+  """
+  def get_g_app(self):
+    g_app = np.array([[0],[self.gravity * self.mass],[0]])
+    return g_app
 
   """
   Use Casadi autodiff to compute jacobians of state dynamics w.r.t. s and u

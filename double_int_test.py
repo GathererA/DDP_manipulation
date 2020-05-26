@@ -33,12 +33,12 @@ s_bar, u_bar, l_arr, L_arr = controller.run_iLQR()
 
 ######################## Simulate system ##############################
 print("Simulating box with params:")
-width = 0.2
-height = 0.3
-mass = 1
-cp_params = [-1, -0.7, 1, 0.7]
-sim_box = PlanarBox(width, height, mass, cp_params)
-print("Width: {}, Height: {}, Mass: {}".format(width, height, mass))
+sim_width = 0.2
+sim_height = 0.3
+sim_mass = 0.1
+sim_cp_params = [-1, -0.7, 1, 0.7]
+sim_box = PlanarBox(sim_width, sim_height, sim_mass, sim_cp_params)
+print("Width: {}, Height: {}, Mass: {}".format(sim_width, sim_height, sim_mass))
 print("Contact point frames w.r.t. object frame: {}".format(sim_box.cp_list)) 
 
 ep_length = 1000
