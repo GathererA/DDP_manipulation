@@ -8,7 +8,7 @@ start_state: [x0, y0, theta0, dx0, dy0, dtheta0]
 goal_state: 
 """
 class PlanarBox():
-  def __init__(self):
+  def __init__(self, cp_params):
 
     # Define box parameters
     self.width = 0.2
@@ -19,7 +19,7 @@ class PlanarBox():
     # Define contact points on box
     self.fnum = 2 # Number of fingers (or contact points)
     # Contact point positions
-    self.cp_params = [-1, 0, 1, 0]
+    self.cp_params = cp_params
     self.p = 100
     self.cp_list = self.set_cps(self.cp_params)
     print("Contact point frames w.r.t. object frame: {}".format(self.cp_list))
