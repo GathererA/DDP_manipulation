@@ -1,6 +1,7 @@
 import numpy as np
 from iLQR import *
 from planarBox import *
+from planarboxconst import *
 from limits import *
 """
 Augmented Lagrangian Controller (Outer Loop)
@@ -15,7 +16,7 @@ class aug_lag():
 		self.lambda0 = lambda0
 		self.constraints = constraints
 
-		# implement iLQR
+		# implment the "vanilla" ilqr
 		self.ilqr = ilqr
 
 		# find the number of states/controls
@@ -33,9 +34,19 @@ class aug_lag():
 		# which in this case is a iLQR. This just minimizes
 		# the cost function given the lambda/mu params
 
-		s_bar, u_bar, l_arr, L_arr = iLQR.run_iLQR()
+		# we have the initial iLQR so extract those params
+		Q = self.ilqr.Q
+		R = self.ilqr.R
+		Qf = self.ilqr.Qf
+		start_state = self.ilqr.start_state
+		goal_state = self.ilqr.goal_state
+		dt = self.ilqr.dt
 
-		return s_bar
+		# change the dynamics to include constraints
+		obj = PlanarBoxConst(self.constraints)
+
+		# generate a new iLQR with modified dynamics
+		return 0
 
 	def log_barrier(self,s_bar,u_bar):
 		# let's use the log-barrier function to enforce
@@ -81,8 +92,3 @@ state_limits = np.array([[-1,-1,-1,-1,-1,-1],[1,1,1,1,1,1]])
 c = constraints(control_limits,state_limits)
 
 AL = aug_lag(mu0,tau0,x0,lambda0,c,controller,box)
-
-# test the constraint func
-x = np.array([0,0,0,0,0,0])
-u = np.array([0,0,0,0])
-print(AL.log_barrier(x,u))
