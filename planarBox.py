@@ -8,21 +8,22 @@ start_state: [x0, y0, theta0, dx0, dy0, dtheta0]
 goal_state: 
 """
 class PlanarBox():
-  def __init__(self):
+  def __init__(self, width, height, mass, cp_params):
+
+    self.gravity = -10
 
     # Define box parameters
-    self.width = 0.2
-    self.height = 0.3
-    self.mass = 0.1
+    self.width = width
+    self.height = height
+    self.mass = mass
     self.M_obj = self.get_M_obj() # Mass matrix of box
 
     # Define contact points on box
     self.fnum = 2 # Number of fingers (or contact points)
     # Contact point positions
-    self.cp_params = [-1, 0, 1, 0]
+    self.cp_params = cp_params
     self.p = 100
     self.cp_list = self.set_cps(self.cp_params)
-    print("Contact point frames w.r.t. object frame: {}".format(self.cp_list))
     
     # Matrix that determines which force components are transmitted through contact points
     self.H = np.array([
@@ -176,7 +177,8 @@ class PlanarBox():
 
     # Compute ddx, ddy, and ddtheta
     G = self.get_G(s, cp_list)
-    dd = inv(self.M_obj) @ (G @ u)
+    g_app = self.get_g_app()
+    dd = inv(self.M_obj) @ (g_app + G @ u)
 
     ds_list.append(dx)
     ds_list.append(dy)
@@ -189,6 +191,13 @@ class PlanarBox():
 
     dyn_fun = Function("dyn", [s,u], [ds])
     return ds, dyn_fun
+
+  """
+  Return force of gravity on object
+  """
+  def get_g_app(self):
+    g_app = np.array([[0],[self.gravity * self.mass],[0]])
+    return g_app
 
   """
   Use Casadi autodiff to compute jacobians of state dynamics w.r.t. s and u
