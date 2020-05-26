@@ -37,6 +37,8 @@ class PlanarBox():
 
     self.s = self.get_s()
     self.u = self.get_u()
+    
+    ds, self.dyn_fun = self.dynamics(self.s, self.u, self.cp_list)
 
   """
   Get state variables
