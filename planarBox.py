@@ -8,7 +8,7 @@ start_state: [x0, y0, theta0, dx0, dy0, dtheta0]
 goal_state: 
 """
 class PlanarBox():
-  def __init__(self, s0):
+  def __init__(self):
 
     # Define box parameters
     self.width = 0.2
@@ -34,6 +34,9 @@ class PlanarBox():
 
     self.m = 6 # State dimension
     self.n = self.fnum * 2 # Control dimension
+
+    self.s = self.get_s()
+    self.u = self.get_u()
 
   """
   Get state variables
@@ -162,6 +165,7 @@ class PlanarBox():
   u: contact force input (4x1 vector)
   Returns
   ds: derivative of state (6x1 vector)
+  dyn_fun: Casadi function of dynamics, to be use for iLQR
   """
   def dynamics(self, s, u, cp_list):
     x,y,theta,dx,dy,dtheta = self.s_unpack(s)
@@ -180,7 +184,9 @@ class PlanarBox():
     ds_list.append(dd[2])
 
     ds = vertcat(*ds_list)
-    return ds
+
+    dyn_fun = Function("dyn", [s,u], [ds])
+    return ds, dyn_fun
 
   """
   Use Casadi autodiff to compute jacobians of state dynamics w.r.t. s and u
@@ -189,7 +195,7 @@ class PlanarBox():
   dfdu: Jacobian w.r.t control input
   """
   def dynamics_jacobians(self,s,u,cp_list):
-    f = self.dynamics(s,u,cp_list)
+    f, dyn_fun = self.dynamics(s,u,cp_list)
     dfds = Function("dfds", [s,u], [jacobian(f, s)])
     dfdu = Function("dfdu", [s,u], [jacobian(f, u)])
     return dfds, dfdu

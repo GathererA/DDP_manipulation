@@ -1,20 +1,27 @@
 import numpy as np
 from planarBox import PlanarBox
+from iLQR import iLQR
+
+
+# Test box object and dynamics
+print("Define planar box object and contact points")
+box = PlanarBox()
+
+# TODO: Add gravity force. For now, we have 0 external forces
+
+# Test iLQR for box with contact force inputs
+Q = np.eye(box.m) * 2
+R = np.eye(box.n)
+Qf = np.eye(box.m) * 10
 
 start_state = np.array([[0, 0, 0, 0, 0, 0]]).T
-box = PlanarBox(start_state)
-s = box.get_s()
-print(s)
-G = box.get_G(s, box.cp_list)
-print(G.shape)
+goal_state = np.array([[0, 0.5, 0, 0, 0, 0]]).T
 
-u = box.get_u()
-box.dynamics(s, u, box.cp_list)
-dfds, dfdu = box.dynamics_jacobians(s,u,box.cp_list)
+num_steps = 100
+dt = 0.01
 
-dt = 0.1
+controller = iLQR(Q, R, Qf, start_state, goal_state, num_steps, dt, box)
 
-s_ref = np.zeros((box.m,1))
-u_ref = np.zeros((box.n,1))
-box.linearized_dynamics(s_ref, u_ref, dt, dfds, dfdu)
+print("\nRun iLQR")
+controller.run_iLQR()
 
