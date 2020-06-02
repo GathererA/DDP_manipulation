@@ -3,14 +3,17 @@ import matplotlib.pyplot as plt
 
 class iLQR():
 
-	def __init__(self, Q, R, Qf, start_s, goal_s, num_steps, dt, obj):
+	def __init__(self, Q, R, Qf, s_bar, u_bar, goal_s, num_steps, dt, constraint_obj, obj):
 
+		# add aug lag for now
+		self.gamma = 1
 		# these are the weighting matrixes for unconstrained goals
 		self.Q = Q
 		self.Qf = Qf
 		self.R = R
 
-		self.start_s = start_s
+		self.s_bar = s_bar
+		self.u_bar = u_bar
 		self.goal_s = goal_s
 
 		self.num_steps = num_steps
@@ -25,33 +28,79 @@ class iLQR():
 		f, self.dyn_fun = obj.dynamics(obj.s, obj.u, obj.cp_list)
 		self.obj = obj
 
+		# initial constraint variables
+		self.mu = 0
+		self.lambda0 = 0
+
 		# hard code some input constraints
-		self.input_constraints = np.array([[-.5,-.5,-.5,-.5],\
-			[.5,.5,.5,.5]])
+		for i in range(constraint_obj.constraint_num):
+			if constraint_obj.constraint_list[i].constraint_type == 1:
+				self.state_constraints = constraint_obj.constraint_list[i].limits
+			if constraint_obj.constraint_list[i].constraint_type == 0:
+				self.input_constraints = constraint_obj.constraint_list[i].limits
+
 
 	def stage_cost(self, s, u):
 		c = 0
 
 		# add state weights
-		c += 1/2*(s.reshape((self.m,1)) - self.goal_s).transpose() @ self.Q @ (s.reshape((self.m,1)) - self.goal_s)
+		c += 1/2*(s.reshape((self.m,1)) - self.goal_s).T @ self.Q @ (s.reshape((self.m,1)) - self.goal_s)
 
 		# add input weights
-		c += 1/2*(u).transpose() @ self.R @ (u)
-
-		# add constraints
-		const = np.zeros((self.n,1))
-		for i in range(self.n):
-			if u[i] > self.input_constraints[1,i]:
-				const[i] = (u[i] - self.input_constraints[1,i])
-		c += np.sum(const)
-
-		const = np.zeros((self.n,1))
-		for i in range(self.n):
-			if u[i] < self.input_constraints[0,i]:
-				const[i] = (self.input_constraints[0,i] - u[i])
-		c += np.sum(const)
+		c += 1/2*(u).T @ self.R @ (u)
 
 		return c
+
+	def get_constraints(self,s,u):
+
+		constraints = np.zeros((self.n * 2 + self.m * 2, 1))
+
+		for i in range(self.n):
+			constraints[i] = (self.input_constraints[0,i] - u[i])
+			constraints[i+self.n] = (u[i] - self.input_constraints[1,i])
+			constraints[i + self.n * 2] = (self.state_constraints[0,i] - s[i])
+			constraints[i + self.n * 2 + self.m] = (s[i] - self.state_constraints[1,i])
+
+		return constraints
+
+	def get_penalty_multiplier(self,s,u,t,lambda0):
+
+		constraints = self.get_constraints(s,u)
+
+		I = np.zeros((np.size(constraints),np.size(constraints)))
+
+		for i in range(np.size(constraints)):
+			if constraints[i] > 0 and lambda0[i] != 0:
+				I[i,i] = self.mu[i,t]
+
+		#print(I)
+		return I
+
+	def get_constraint_jacobians(self,s,u):
+
+		delta = .001
+
+		constraints = self.get_constraints(s,u)
+
+		num_const = np.size(constraints)
+
+		constraints_x = np.zeros((num_const,self.m))
+		for i in range(self.m):
+			s_diff = np.copy(s)
+			s_diff[i] += delta
+			constraints_x[:,i] = ((self.get_constraints(s_diff,u) \
+				- self.get_constraints(s,u))/delta).flatten()
+
+		constraints_u = np.zeros((num_const,self.n))
+		for i in range(self.n):
+			# create the delta
+			u_diff = np.copy(u)
+			u_diff[i] += delta
+
+			constraints_u[:,i] = ((self.get_constraints(s,u_diff) \
+				- self.get_constraints(s,u))/delta).flatten()
+
+		return constraints_x, constraints_u
 
 	def cost_jacobians(self, s, u):
 		# calculates a gradient by taking small steps and 
@@ -75,7 +124,7 @@ class iLQR():
 			u_diff = np.copy(u)
 			u_diff[i] += delta
 
-			c_u[i] = (self.stage_cost(s,u_diff) - self.stage_cost(s,u_diff))/delta
+			c_u[i] = (self.stage_cost(s,u_diff) - self.stage_cost(s,u))/delta
 		
 		c_xx = np.zeros((self.m,self.m))
 		for i in range(self.m):
@@ -120,15 +169,19 @@ class iLQR():
 
 
 
-	def run_iLQR(self):
-		# Intialize nominal trajectory
-		s_bar = np.zeros((self.m, self.num_steps + 1))
-		s_bar[:, 0] = self.start_s[:,0]
-		#u_bar = np.random.rand(self.n, self.num_steps) * 0.001 # random doesn't converge
-		u_bar = np.zeros((self.n, self.num_steps))
+	def run_iLQR(self,mu,lambda0):
 
-		u_bar_prev = np.ones(u_bar.shape) # Aribrary values that will not result in termination
-		s_bar_prev = s_bar
+		# update mu
+		self.mu = mu
+		self.lambda0 = lambda0
+
+		# are constraints satisfied? 
+		satisfied = True
+
+		u_bar_prev = np.ones(self.u_bar.shape) # Aribrary values that will not result in termination
+		s_bar_prev = self.s_bar
+		s_bar = self.s_bar
+		u_bar = self.u_bar
 
 		# Arrays to save gains
 		l_arr = np.zeros((self.n, self.num_steps))
@@ -153,21 +206,21 @@ class iLQR():
 	    # Loop until convergence 
 		while (np.linalg.norm(u_bar - u_bar_prev) > self.epsilon and count < 10):
 			delta = np.linalg.norm(u_bar - u_bar_prev) # for debugging
-			print(delta)
+			#print(delta)
 
 
 			V = self.Qf
 
 			v = self.Qf @ (np.expand_dims(s_bar[:, -1],1) - self.goal_s)
 
-			v_const = 1/2 * self.goal_s.transpose() @ self.Qf @ self.goal_s
+			v_const = 1/2 * self.goal_s.T @ self.Qf @ self.goal_s
 
 			for t in range(self.num_steps-1,-1,-1):
 				s_curr = np.expand_dims(s_bar[:, t],1)
 				u_curr = np.expand_dims(u_bar[:, t],1)
 
 				l,L,v_const,v,V = self.backward_riccati_recursion(\
-					s_curr,u_curr,V,v,v_const)
+					s_curr,u_curr,V,v,v_const,t)
 
 				# Save l and L
 				l_arr[:,t] = np.squeeze(l)
@@ -187,39 +240,54 @@ class iLQR():
 
 			count += 1
 
-			# plt.figure()
-			# times = np.linspace(0, self.num_steps*self.dt, self.num_steps)
-			# labels = ["cp1_x", "cp1_y", "cp2_x", "cp2_y"]
-			# for i in range(self.n):
-			#   plt.plot(times, u_bar[i,:], label=labels[i])
-			# plt.legend()
-			# plt.title("Control input")
-			# plt.xlabel("Time")
-			# plt.show()
 
+		# check constraints
+		for t in range(self.num_steps):
+			s = s_bar[:,t]
+			u = u_bar[:,t]
+			constraints = self.get_constraints(s,u)
+			#print(constraints)
+			if np.any(constraints > .01):
+				satisfied = False
 
-		return s_bar, u_bar, l_arr, L_arr
+		plt.figure()
+		times = np.linspace(0, self.num_steps*self.dt, self.num_steps)
+		labels = ["cp1_x", "cp1_y", "cp2_x", "cp2_y"]
+		for i in range(self.n):
+		  plt.plot(times, u_bar[i,:], label=labels[i])
+		plt.legend()
+		plt.title("Control input")
+		plt.xlabel("Time")
+		plt.show()
 
-	def backward_riccati_recursion(self,s,u,V,v,v_const):
+		#print(satisfied)
+		return s_bar, u_bar, l_arr, L_arr, satisfied
+
+	def backward_riccati_recursion(self,s,u,V,v,v_const,t):
 		A, B = self.obj.linearized_dynamics(s, \
 			u, self.dt, self.dfds, self.dfdu)
 
 		c,c_x,c_u,c_xx,c_ux,c_uu = self.cost_jacobians(\
 			s,u)
 
+		constraints = self.get_constraints(s,u)
+		I = self.get_penalty_multiplier(s,u,t,self.lambda0[:,t])
+		constraints_x,constraints_u = self.get_constraint_jacobians(s,u)
+
 		Q = c + v_const
-		Qx = c_x + np.array(A).transpose() @ v 
-		Qu = c_u + np.array(B).transpose() @ v 
-		Qxx = c_xx + np.array(A).transpose() @ V @ np.array(A)
-		Qux = c_ux + np.array(B).transpose() @ V @ np.array(A)
-		Quu = c_uu + np.array(B).transpose() @ V @ np.array(B)
+		lambda_spec = self.lambda0[:,t].reshape((constraints.size,1))
+		Qx = c_x + np.array(A).T @ v + constraints_x.T @ (lambda_spec + I @ constraints)
+		Qu = c_u + np.array(B).T @ v + constraints_u.T @ (lambda_spec + I @ constraints)
+		Qxx = c_xx + np.array(A).T @ V @ np.array(A) + constraints_x.T @ I @ constraints_x
+		Qux = c_ux + np.array(B).T @ V @ np.array(A) + constraints_u.T @ I @ constraints_x
+		Quu = c_uu + np.array(B).T @ V @ np.array(B) + constraints_u.T @ I @ constraints_u
 
 		l = -np.linalg.inv(Quu) @ Qu 
 		L = -np.linalg.inv(Quu) @ Qux 
 
-		v_const_new = Q - 1/2 * l.transpose() @ Quu @ l 
-		v_new = Qx - L.transpose() @ Quu @ l 
-		V_new = Qxx - L.transpose() @ Quu @ L
+		v_const_new = Q - 1/2 * l.T @ Quu @ l 
+		v_new = Qx - L.T @ Quu @ l 
+		V_new = Qxx - L.T @ Quu @ L
 
 		return l,L,v_const_new,v_new,V_new
 

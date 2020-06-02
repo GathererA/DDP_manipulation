@@ -7,16 +7,20 @@ class constraints():
 		self.n = n # number of states
 		self.m = m # number of inputs
 
+		self.num_constraints = 0
 		self.constraint_num = 0
 		self.constraint_list = []
 
 	def add_constraint(self,constraint_type,limits):
 		if (constraint_type == 0):
 			self.constraint_num += 1
+			self.num_constraints += limits.size
 			self.constraint_list.append(control_constraint(limits))
+
 
 		if (constraint_type == 1):
 			self.constraint_num += 1
+			self.num_constraints += limits.size
 			self.constraint_list.append(state_constraint(limits))
 
 
