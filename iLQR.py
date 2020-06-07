@@ -87,7 +87,7 @@ class iLQR():
       s_bar_prev = np.copy(s_bar)
       for t in range(self.num_steps):
         # Update control input
-        u_bar[:, t] = np.squeeze(u_bar[:, t] + L @ (s_bar[:,t] - s_bar_prev[:,t]) + l)
+        u_bar[:, t] = np.squeeze(u_bar[:, t] + L_arr[:,:,t] @ (s_bar[:,t] - s_bar_prev[:,t]) + l)
         # Update state
         s_curr = s_bar[:, t]
         u_curr = u_bar[:, t]
