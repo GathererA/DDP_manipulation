@@ -51,27 +51,29 @@ class aug_lag():
 			ilqr_mod = iLQR(Q, R, Qf, s_bar, u_bar, goal_state, num_steps, dt, self.constraint_obj, box)
 			s_bar, u_bar, l_arr, L_arr,satisfied = ilqr_mod.run_iLQR(self.mu,self.lambda0)
 			# update parameters 
-			self.mu *= 1.5
+			self.mu *= 5
 			print("mu: {}".format(self.mu[0,0]))
 			for t in range(self.num_steps):
 				s = s_bar[:,t]
 				u = u_bar[:,t]
 				constraints = ilqr_mod.get_constraints(s,u)
+				# print(constraints)
 				for i in range(constraints.size):
 					if constraints[i] > 0:
 						self.lambda0[i,t] = self.lambda0[i,t] + self.mu[i,t] * constraints[i]
 					if constraints[i] <= 0:
 						self.lambda0[i,t] = max(0,self.lambda0[i,t] + self.mu[i,t] * constraints[i])
-				#print(self.lambda0)
+			# 	#print(self.lambda0)
 
 		return s_bar, u_bar, l_arr, L_arr
 
+####################### Initialize the lqr class ##########################
 
 print("Run iLQR on box with params:")
 width = 0.2
 height = 0.3
 mass = 0.1
-cp_params = [-1, -0.7, 1, 0.7]
+cp_params = [-1, -0, 1, 0]
 box = PlanarBox(width, height, mass, cp_params)
 print("Width: {}, Height: {}, Mass: {}".format(width, height, mass))
 print("Contact point frames w.r.t. object frame: {}".format(box.cp_list)) 
@@ -118,14 +120,16 @@ plt.show()
 ####################### Run the Augmented Lagrangian ##########################
 # define constraints
 control_limits = np.array([[-.6,-.6,-.6,-.6],[.6,.6,.6,.6]])
-state_limits = np.array([[-1,-1,-1,-1,-1,-1],[.8,.8,.8,.8,.8,.8]])
+state_limits = np.array([[-1,-1,-1,-1,-1,-1],[1,1,1,1,1,.85]])
+mu = 1 # friction coefficient
 
 c = constraints(6,4)
-c.add_constraint(0,control_limits)
-c.add_constraint(1,state_limits)
+c.add_input_constraint(control_limits)
+c.add_state_constraint(state_limits)
+#c.add_friction_constraint(mu)
 
 # define constants
-mu0 = np.ones((c.num_constraints,num_steps))
+mu0 = np.ones((c.num_constraints,num_steps)) / 2
 tau0 = 1
 lambda0 = np.zeros((c.num_constraints,num_steps))
 
@@ -163,7 +167,7 @@ times = np.linspace(0, num_steps*dt, num_steps)
 labels = ["cp1_x", "cp1_y", "cp2_x", "cp2_y"]
 for i in range(box.n):
   plt.plot(times, u_bar[i,:], label=labels[i])
-plt.legend()
+plt.legend('lower left')
 plt.title("Control input")
 plt.xlabel("Time")
 plt.show()
