@@ -96,8 +96,8 @@ control_limits = np.array([[-.6,-.6,-.6,-.6],[.6,.6,.6,.6]])
 state_limits = np.array([[-1,-1,-1,-1,-1,-1],[1,1,1,1,1,1]])
 
 c = constraints(6,4)
-c.add_constraint(0,control_limits)
-c.add_constraint(1,state_limits)
+c.add_input_constraint(control_limits)
+c.add_state_constraint(state_limits)
 
 # define constants
 mu0 = np.ones((c.num_constraints,num_steps))
