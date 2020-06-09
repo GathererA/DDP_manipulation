@@ -64,7 +64,7 @@ class AnimateSystem():
       # x and y locations of contact point, scaled to object dimensions  
       x = self.obj.cp_list[f_i]["p"][0]
       y = self.obj.cp_list[f_i]["p"][1]
-      x_obj = center + (R @  (np.array([center[0]-x, center[1]-y, 0]) - center))
+      x_obj = center + (R @  (np.array([center[0]+x, center[1]+y, 0]) - center))
       self.lines[f_i].set_data(x_obj[0],x_obj[1])
 
     return self.lines
