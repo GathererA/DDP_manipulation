@@ -51,7 +51,7 @@ class aug_lag():
 			ilqr_mod = iLQR(Q, R, Qf, s_bar, u_bar, goal_state, num_steps, dt, self.constraint_obj, box)
 			s_bar, u_bar, l_arr, L_arr,satisfied = ilqr_mod.run_iLQR(self.mu,self.lambda0)
 			# update parameters 
-			self.mu *= 5
+			self.mu *= 2
 			print("mu: {}".format(self.mu[0,0]))
 			for t in range(self.num_steps):
 				s = s_bar[:,t]
@@ -120,7 +120,7 @@ plt.show()
 ####################### Run the Augmented Lagrangian ##########################
 # define constraints
 control_limits = np.array([[-.6,-.6,-.6,-.6],[.6,.6,.6,.6]])
-state_limits = np.array([[-1,-1,-1,-1,-1,-1],[1,1,1,1,1,.85]])
+state_limits = np.array([[-1,-1,-1,-1,-1,-1],[1,1,1,1,1,.7]])
 mu = 1 # friction coefficient
 
 c = constraints(6,4)

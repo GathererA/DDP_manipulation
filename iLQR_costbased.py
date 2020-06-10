@@ -300,7 +300,7 @@ class iLQR():
 			u = u_bar[:,t]
 			constraints = self.get_constraints(s,u)
 			#print(constraints)
-			if np.any(constraints > .1):
+			if np.any(constraints > .05):
 				satisfied = False
 
 		plt.figure()
